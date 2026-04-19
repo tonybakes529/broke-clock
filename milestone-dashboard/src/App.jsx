@@ -2,28 +2,14 @@ import { useMemo } from 'react'
 import DailyEntry from './components/DailyEntry.jsx'
 import MetricsPanel from './components/MetricsPanel.jsx'
 import MilestoneTable from './components/MilestoneTable.jsx'
-import AuthScreen from './components/AuthScreen.jsx'
-import { useAuth } from './hooks/useAuth.js'
 import { useDashboardStore } from './hooks/useDashboardStore.js'
-import { supabaseConfigured } from './lib/supabase.js'
+
+// Auth is intentionally disabled for now — data lives in browser localStorage only.
+// To re-enable: restore the useAuth import and the AuthScreen gate (see git history),
+// or import { useAuth } from './hooks/useAuth.js' and wrap App accordingly.
 
 export default function App() {
-  const { user, loading: authLoading, signOut } = useAuth()
-
-  // Show auth screen if Supabase is configured but user isn't signed in.
-  if (supabaseConfigured && !authLoading && !user) {
-    return <AuthScreen />
-  }
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-zinc-500">
-        <span className="animate-pulse text-sm tracking-widest">LOADING</span>
-      </div>
-    )
-  }
-
-  return <Dashboard user={user} onSignOut={signOut} />
+  return <Dashboard user={null} onSignOut={null} />
 }
 
 function Dashboard({ user, onSignOut }) {
