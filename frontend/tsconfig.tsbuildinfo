@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/components/boardcard.tsx","./src/components/card.tsx","./src/components/sidebar.tsx","./src/components/swipefilelist.tsx","./src/components/topbar.tsx","./src/hooks/useapi.ts","./src/pages/boarddetailpage.tsx","./src/pages/boardspage.tsx","./src/pages/swipefilepage.tsx","./src/types/index.ts"],"version":"5.9.3"}
