@@ -9,12 +9,24 @@ A dark-mode luxury financial gatekeeper. Log daily revenue and expenses, track y
 
 Both must be met for **APPROVED**. Otherwise the row tells you which half to strengthen.
 
+## Stack
+
+- **Frontend:** Vite + React + Tailwind, deployed to Vercel
+- **Backend:** Supabase (Postgres + Auth) — magic-link email login
+- **Offline mode:** if Supabase env vars aren't set, the app falls back to localStorage only
+
 ## Local development
 
+Copy the env template and fill in your Supabase project values:
+
 ```bash
+cp .env.example .env.local
+# edit .env.local with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
 npm install
 npm run dev
 ```
+
+Without the env vars, the app runs in local-only mode (no auth, browser localStorage).
 
 ## Production build
 
@@ -22,22 +34,31 @@ npm run dev
 npm run build
 ```
 
-This generates a static `dist/` folder — ready to upload to any host.
+This generates a static `dist/` folder.
 
-## Deploy in 3 steps
+## Deploy to Vercel
 
-### Option A — Netlify (drag-and-drop)
+The repo is wired to Vercel via the GitHub integration. Push to `main` to deploy.
 
-1. Run `npm run build` — you now have a `dist/` folder.
-2. Go to [app.netlify.com/drop](https://app.netlify.com/drop) and sign in.
-3. Drag the entire `dist/` folder onto the drop zone. Netlify gives you a live URL immediately — open it on your phone.
+**One-time Vercel setup:** In your Vercel project settings → **Environment Variables**, add:
 
-### Option B — Vercel (CLI)
+| Name | Value |
+|---|---|
+| `VITE_SUPABASE_URL` | `https://YOUR-PROJECT-REF.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | `sb_publishable_…` |
 
-1. Run `npm install -g vercel` once, then `vercel login`.
-2. From inside the `milestone-dashboard` folder, run `vercel` and accept the defaults (framework: Vite).
-3. For a production URL, run `vercel --prod`. Open the URL on your phone.
+Set the **Root Directory** to `milestone-dashboard` (Project Settings → General).
 
-## Data & privacy
+## Database schema
 
-All entries, your bank balance, and milestone names are stored in your browser's `localStorage`. Nothing is uploaded. Clearing your browser data will clear your history.
+Three tables, all with row-level security so each authenticated user only sees their own rows:
+
+- `daily_entries` — id, user_id, entry_date, revenue, expense, created_at
+- `bank_balance` — user_id (PK), amount, updated_at
+- `milestones` — (user_id, idx 0–6) PK, name, updated_at
+
+Migration lives in Supabase project history (`init_milestone_dashboard_schema`).
+
+## Privacy
+
+Your data is stored in your private Supabase row, gated by RLS — only you can read or write it. No telemetry, no analytics, no third parties.

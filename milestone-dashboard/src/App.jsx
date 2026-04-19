@@ -2,20 +2,43 @@ import { useMemo } from 'react'
 import DailyEntry from './components/DailyEntry.jsx'
 import MetricsPanel from './components/MetricsPanel.jsx'
 import MilestoneTable from './components/MilestoneTable.jsx'
-import { useLocalStorage } from './hooks/useLocalStorage.js'
-
-const STORAGE_KEYS = {
-  entries: 'md.entries.v1',
-  bank: 'md.bankBalance.v1',
-  names: 'md.milestoneNames.v1',
-}
-
-const DEFAULT_NAMES = Array(7).fill('')
+import AuthScreen from './components/AuthScreen.jsx'
+import { useAuth } from './hooks/useAuth.js'
+import { useDashboardStore } from './hooks/useDashboardStore.js'
+import { supabaseConfigured } from './lib/supabase.js'
 
 export default function App() {
-  const [entries, setEntries] = useLocalStorage(STORAGE_KEYS.entries, [])
-  const [bankBalanceRaw, setBankBalanceRaw] = useLocalStorage(STORAGE_KEYS.bank, '')
-  const [names, setNames] = useLocalStorage(STORAGE_KEYS.names, DEFAULT_NAMES)
+  const { user, loading: authLoading, signOut } = useAuth()
+
+  // Show auth screen if Supabase is configured but user isn't signed in.
+  if (supabaseConfigured && !authLoading && !user) {
+    return <AuthScreen />
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-zinc-500">
+        <span className="animate-pulse text-sm tracking-widest">LOADING</span>
+      </div>
+    )
+  }
+
+  return <Dashboard user={user} onSignOut={signOut} />
+}
+
+function Dashboard({ user, onSignOut }) {
+  const {
+    entries,
+    bankBalanceRaw,
+    names,
+    loading,
+    error,
+    isCloud,
+    addEntry,
+    deleteEntry,
+    setBankBalance,
+    setName,
+  } = useDashboardStore(user)
 
   const bankBalance = useMemo(() => {
     const n = parseFloat(bankBalanceRaw)
@@ -33,34 +56,10 @@ export default function App() {
       0,
     )
     const avg = totalProfit / window.length
-    return {
-      avgDailyProfit: avg,
-      projectedMonthlyProfit: avg * 30,
-    }
+    return { avgDailyProfit: avg, projectedMonthlyProfit: avg * 30 }
   }, [entries])
 
-  const addEntry = (entry) => {
-    const id =
-      typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(16).slice(2)}`
-    setEntries((prev) => [...prev, { id, ...entry }])
-  }
-
-  const deleteEntry = (id) => {
-    setEntries((prev) => prev.filter((e) => e.id !== id))
-  }
-
-  const updateName = (index, value) => {
-    setNames((prev) => {
-      const next = [...prev]
-      while (next.length < 7) next.push('')
-      next[index] = value
-      return next
-    })
-  }
-
-  const safeNames = (Array.isArray(names) ? names : DEFAULT_NAMES).slice(0, 7)
+  const safeNames = (Array.isArray(names) ? names : []).slice(0, 7)
   while (safeNames.length < 7) safeNames.push('')
 
   return (
@@ -78,35 +77,72 @@ export default function App() {
               </p>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 text-xs text-zinc-500">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            Local · Private · Saved
+          <div className="flex items-center gap-3 text-xs">
+            {isCloud ? (
+              <span className="hidden sm:flex items-center gap-2 text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                Synced
+              </span>
+            ) : (
+              <span className="hidden sm:flex items-center gap-2 text-zinc-500">
+                <span className="h-2 w-2 rounded-full bg-zinc-600" />
+                Local only
+              </span>
+            )}
+            {user && (
+              <>
+                <span className="hidden md:inline text-zinc-500">{user.email}</span>
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className="btn-ghost text-xs py-1.5 px-3"
+                >
+                  Sign out
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
+      {error && (
+        <div className="max-w-6xl mx-auto px-4 md:px-8 pt-4">
+          <div className="border border-red-500/40 bg-red-500/10 text-red-300 text-sm rounded-lg px-4 py-3">
+            {error}
+          </div>
+        </div>
+      )}
+
       <main className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-10 space-y-6 md:space-y-10">
-        <DailyEntry
-          entries={entries}
-          onAdd={addEntry}
-          onDelete={deleteEntry}
-          bankBalance={bankBalanceRaw}
-          onBankBalanceChange={setBankBalanceRaw}
-        />
+        {loading ? (
+          <div className="card card-glow p-10 text-center text-zinc-500 text-sm tracking-widest animate-pulse">
+            LOADING YOUR DATA…
+          </div>
+        ) : (
+          <>
+            <DailyEntry
+              entries={entries}
+              onAdd={addEntry}
+              onDelete={deleteEntry}
+              bankBalance={bankBalanceRaw}
+              onBankBalanceChange={setBankBalance}
+            />
 
-        <MetricsPanel
-          avgDailyProfit={avgDailyProfit}
-          projectedMonthlyProfit={projectedMonthlyProfit}
-          availableCapital={bankBalance}
-          entryCount={entries.length}
-        />
+            <MetricsPanel
+              avgDailyProfit={avgDailyProfit}
+              projectedMonthlyProfit={projectedMonthlyProfit}
+              availableCapital={bankBalance}
+              entryCount={entries.length}
+            />
 
-        <MilestoneTable
-          names={safeNames}
-          onNameChange={updateName}
-          monthlyProfit={projectedMonthlyProfit}
-          bankBalance={bankBalance}
-        />
+            <MilestoneTable
+              names={safeNames}
+              onNameChange={setName}
+              monthlyProfit={projectedMonthlyProfit}
+              bankBalance={bankBalance}
+            />
+          </>
+        )}
 
         <footer className="pt-8 pb-4 text-center text-xs text-zinc-600">
           Approval requires <span className="text-emerald-400">3× monthly profit</span> and{' '}
