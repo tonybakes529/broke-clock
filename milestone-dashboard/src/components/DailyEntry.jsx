@@ -6,12 +6,23 @@ function todayISO() {
   return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10)
 }
 
+function formatUSD(n) {
+  if (!Number.isFinite(n)) return '$0'
+  return n.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  })
+}
+
 export default function DailyEntry({
   entries,
   onAdd,
   onDelete,
   bankBalance,
   onBankBalanceChange,
+  budgetActive = false,
+  syncedBankBalance = 0,
 }) {
   const [date, setDate] = useState(todayISO())
   const [revenue, setRevenue] = useState('')
@@ -90,20 +101,33 @@ export default function DailyEntry({
 
       <div className="mt-6 pt-6 border-t border-zinc-800">
         <label className="label">Current Total Bank Balance ($)</label>
-        <div className="mt-2 flex items-center gap-3">
-          <span className="font-display text-2xl text-gold">$</span>
-          <input
-            type="number"
-            step="0.01"
-            inputMode="decimal"
-            placeholder="0.00"
-            className="field font-display text-2xl md:text-3xl py-3"
-            value={bankBalance}
-            onChange={(e) => onBankBalanceChange(e.target.value)}
-          />
-        </div>
+        {budgetActive ? (
+          <div className="mt-2 flex items-baseline gap-3">
+            <span className="font-display text-2xl md:text-3xl text-gold tabular-nums">
+              {formatUSD(syncedBankBalance)}
+            </span>
+            <span className="text-xs text-emerald-400">
+              · Synced from Budget tab
+            </span>
+          </div>
+        ) : (
+          <div className="mt-2 flex items-center gap-3">
+            <span className="font-display text-2xl text-gold">$</span>
+            <input
+              type="number"
+              step="0.01"
+              inputMode="decimal"
+              placeholder="0.00"
+              className="field font-display text-2xl md:text-3xl py-3"
+              value={bankBalance}
+              onChange={(e) => onBankBalanceChange(e.target.value)}
+            />
+          </div>
+        )}
         <p className="text-xs text-zinc-500 mt-2">
-          Updated in real-time. Used to evaluate the 10x Rule against every milestone.
+          {budgetActive
+            ? 'Sum of all cash accounts in the Budget tab. Edit there to update.'
+            : 'Updated in real-time. Used to evaluate the 10x Rule against every milestone.'}
         </p>
       </div>
 

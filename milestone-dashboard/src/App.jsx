@@ -1,8 +1,21 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import DailyEntry from './components/DailyEntry.jsx'
 import MetricsPanel from './components/MetricsPanel.jsx'
 import MilestoneTable from './components/MilestoneTable.jsx'
+import GoalsTab from './components/GoalsTab.jsx'
+import BudgetTab from './components/BudgetTab.jsx'
+import CampaignBoard from './components/CampaignBoard/CampaignBoard.jsx'
+import ActiveCampaignsPanel from './components/ActiveCampaignsPanel.jsx'
+import OutreachTab from './components/OutreachTab.jsx'
 import { useDashboardStore } from './hooks/useDashboardStore.js'
+
+const TABS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'budget', label: 'Budget' },
+  { id: 'goals', label: 'Goals' },
+  { id: 'campaigns', label: 'Campaigns' },
+  { id: 'outreach', label: 'Outreach' },
+]
 
 // Auth is intentionally disabled for now — data lives in browser localStorage only.
 // To re-enable: restore the useAuth import and the AuthScreen gate (see git history),
@@ -24,16 +37,17 @@ function Dashboard({ user, onSignOut }) {
     deleteEntry,
     setBankBalance,
     setName,
+    budgetMetrics,
   } = useDashboardStore(user)
 
-  const bankBalance = useMemo(() => {
+  const manualBankBalance = useMemo(() => {
     const n = parseFloat(bankBalanceRaw)
     return Number.isFinite(n) ? n : 0
   }, [bankBalanceRaw])
 
-  const { avgDailyProfit, projectedMonthlyProfit } = useMemo(() => {
+  const { avgDailyProfit, entryProjectedMonthlyProfit } = useMemo(() => {
     if (!entries.length) {
-      return { avgDailyProfit: 0, projectedMonthlyProfit: 0 }
+      return { avgDailyProfit: 0, entryProjectedMonthlyProfit: 0 }
     }
     const sorted = [...entries].sort((a, b) => (a.date < b.date ? 1 : -1))
     const window = sorted.slice(0, 30)
@@ -42,11 +56,23 @@ function Dashboard({ user, onSignOut }) {
       0,
     )
     const avg = totalProfit / window.length
-    return { avgDailyProfit: avg, projectedMonthlyProfit: avg * 30 }
+    return { avgDailyProfit: avg, entryProjectedMonthlyProfit: avg * 30 }
   }, [entries])
+
+  // Budget tab is the source of truth when present; daily-entries + manual
+  // bank balance are the legacy fallback.
+  const budgetActive = Boolean(budgetMetrics)
+  const projectedMonthlyProfit = budgetActive
+    ? budgetMetrics.combined.monthlyLeftover
+    : entryProjectedMonthlyProfit
+  const bankBalance = budgetActive
+    ? budgetMetrics.combined.totalCash
+    : manualBankBalance
 
   const safeNames = (Array.isArray(names) ? names : []).slice(0, 7)
   while (safeNames.length < 7) safeNames.push('')
+
+  const [activeTab, setActiveTab] = useState('dashboard')
 
   return (
     <div className="min-h-full">
@@ -106,27 +132,75 @@ function Dashboard({ user, onSignOut }) {
           </div>
         ) : (
           <>
-            <DailyEntry
-              entries={entries}
-              onAdd={addEntry}
-              onDelete={deleteEntry}
-              bankBalance={bankBalanceRaw}
-              onBankBalanceChange={setBankBalance}
-            />
+            <nav
+              role="tablist"
+              aria-label="Sections"
+              className="flex gap-1 p-1 rounded-xl bg-zinc-900/60 border border-zinc-800/80 w-fit"
+            >
+              {TABS.map((tab) => {
+                const active = tab.id === activeTab
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium tracking-wide transition-colors ${
+                      active
+                        ? 'bg-zinc-800 text-zinc-50 shadow-inner'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </nav>
 
-            <MetricsPanel
-              avgDailyProfit={avgDailyProfit}
-              projectedMonthlyProfit={projectedMonthlyProfit}
-              availableCapital={bankBalance}
-              entryCount={entries.length}
-            />
+            {activeTab === 'dashboard' && (
+              <>
+                <DailyEntry
+                  entries={entries}
+                  onAdd={addEntry}
+                  onDelete={deleteEntry}
+                  bankBalance={bankBalanceRaw}
+                  onBankBalanceChange={setBankBalance}
+                  budgetActive={budgetActive}
+                  syncedBankBalance={bankBalance}
+                />
 
-            <MilestoneTable
-              names={safeNames}
-              onNameChange={setName}
-              monthlyProfit={projectedMonthlyProfit}
-              bankBalance={bankBalance}
-            />
+                <MetricsPanel
+                  avgDailyProfit={avgDailyProfit}
+                  projectedMonthlyProfit={projectedMonthlyProfit}
+                  availableCapital={bankBalance}
+                  entryCount={entries.length}
+                />
+
+                <ActiveCampaignsPanel />
+
+                <MilestoneTable
+                  names={safeNames}
+                  onNameChange={setName}
+                  monthlyProfit={projectedMonthlyProfit}
+                  bankBalance={bankBalance}
+                />
+              </>
+            )}
+
+            {activeTab === 'budget' && <BudgetTab />}
+
+            {activeTab === 'goals' && (
+              <GoalsTab
+                names={safeNames}
+                monthlyProfit={projectedMonthlyProfit}
+                bankBalance={bankBalance}
+              />
+            )}
+
+            {activeTab === 'campaigns' && <CampaignBoard />}
+
+            {activeTab === 'outreach' && <OutreachTab />}
           </>
         )}
 
