@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase, supabaseConfigured } from '../lib/supabase.js'
+import { deriveCombinedMetrics, hasAnyBudgetData } from '../utils/budgetMath.js'
+import {
+  BUDGET_STORAGE_KEY,
+  BUDGET_UPDATE_EVENT,
+} from './useBudgetStore.js'
 
 const LS_KEYS = {
   entries: 'md.entries.v1',
@@ -8,6 +13,18 @@ const LS_KEYS = {
 }
 
 const DEFAULT_NAMES = Array(7).fill('')
+
+function readBudgetMetrics() {
+  try {
+    const raw = localStorage.getItem(BUDGET_STORAGE_KEY)
+    if (!raw) return null
+    const state = JSON.parse(raw)
+    if (!hasAnyBudgetData(state)) return null
+    return deriveCombinedMetrics(state)
+  } catch {
+    return null
+  }
+}
 
 function readLS(key, fallback) {
   try {
@@ -39,8 +56,24 @@ export function useDashboardStore(user) {
   const [entries, setEntries] = useState(() => readLS(LS_KEYS.entries, []))
   const [bankBalanceRaw, setBankBalanceRaw] = useState(() => readLS(LS_KEYS.bank, ''))
   const [names, setNames] = useState(() => readLS(LS_KEYS.names, DEFAULT_NAMES))
+  const [budgetMetrics, setBudgetMetrics] = useState(() => readBudgetMetrics())
   const [loading, setLoading] = useState(isCloud)
   const [error, setError] = useState(null)
+
+  // Stay in sync with the Budget tab. Same-tab edits dispatch a custom event;
+  // cross-tab edits fire the standard `storage` event.
+  useEffect(() => {
+    const refresh = () => setBudgetMetrics(readBudgetMetrics())
+    const onStorage = (e) => {
+      if (e.key === BUDGET_STORAGE_KEY) refresh()
+    }
+    window.addEventListener(BUDGET_UPDATE_EVENT, refresh)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener(BUDGET_UPDATE_EVENT, refresh)
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [])
 
   // Cache to localStorage on every change (works in both modes)
   useEffect(() => writeLS(LS_KEYS.entries, entries), [entries])
@@ -204,5 +237,6 @@ export function useDashboardStore(user) {
     deleteEntry,
     setBankBalance,
     setName,
+    budgetMetrics,
   }
 }
