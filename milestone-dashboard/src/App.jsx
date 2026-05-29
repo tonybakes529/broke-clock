@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import DailyEntry from './components/DailyEntry.jsx'
 import MetricsPanel from './components/MetricsPanel.jsx'
 import MilestoneTable from './components/MilestoneTable.jsx'
@@ -8,6 +8,7 @@ import CampaignBoard from './components/CampaignBoard/CampaignBoard.jsx'
 import ActiveCampaignsPanel from './components/ActiveCampaignsPanel.jsx'
 import OutreachTab from './components/OutreachTab.jsx'
 import { useDashboardStore } from './hooks/useDashboardStore.js'
+import { exportBackup, importBackupFromFile } from './utils/backup.js'
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -73,14 +74,59 @@ function Dashboard({ user, onSignOut }) {
   while (safeNames.length < 7) safeNames.push('')
 
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [saveState, setSaveState] = useState('idle') // 'idle' | 'saved' | 'restoring' | 'restored' | 'error'
+  const [saveMsg, setSaveMsg] = useState('')
+  const fileInputRef = useRef(null)
+
+  function flashStatus(state, msg = '', ms = 1800) {
+    setSaveState(state)
+    setSaveMsg(msg)
+    window.clearTimeout(flashStatus._t)
+    flashStatus._t = window.setTimeout(() => {
+      setSaveState('idle')
+      setSaveMsg('')
+    }, ms)
+  }
+
+  function handleSave() {
+    try {
+      exportBackup()
+      flashStatus('saved', 'Backup downloaded')
+    } catch (err) {
+      flashStatus('error', err?.message || 'Save failed', 3000)
+    }
+  }
+
+  async function handleRestoreFile(file) {
+    if (!file) return
+    setSaveState('restoring')
+    setSaveMsg('Restoring…')
+    try {
+      const result = await importBackupFromFile(file)
+      flashStatus('restored', `Restored ${result.restored} item${result.restored === 1 ? '' : 's'}`)
+    } catch (err) {
+      flashStatus('error', err?.message || 'Restore failed', 3500)
+    }
+  }
 
   return (
     <div className="min-h-full">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          handleRestoreFile(file)
+          e.target.value = '' // allow re-selecting the same file later
+        }}
+      />
       <header className="border-b border-zinc-900/80 bg-zinc-950/60 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-gold via-gold-soft to-gold-deep shadow-gold" />
-            <div>
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-gold via-gold-soft to-gold-deep shadow-gold flex-shrink-0" />
+            <div className="min-w-0">
               <h1 className="font-display text-xl md:text-2xl tracking-tight">
                 Milestone Dashboard
               </h1>
@@ -89,18 +135,49 @@ function Dashboard({ user, onSignOut }) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 text-xs">
-            {isCloud ? (
+          <div className="flex items-center gap-2 md:gap-3 text-xs flex-shrink-0">
+            {saveState === 'saved' || saveState === 'restored' ? (
+              <span className="hidden sm:flex items-center gap-2 text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                {saveMsg || 'Saved ✓'}
+              </span>
+            ) : saveState === 'restoring' ? (
+              <span className="hidden sm:flex items-center gap-2 text-amber-400">
+                <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                {saveMsg || 'Restoring…'}
+              </span>
+            ) : saveState === 'error' ? (
+              <span className="hidden sm:flex items-center gap-2 text-red-400">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                {saveMsg || 'Error'}
+              </span>
+            ) : isCloud ? (
               <span className="hidden sm:flex items-center gap-2 text-emerald-400">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 Synced
               </span>
             ) : (
-              <span className="hidden sm:flex items-center gap-2 text-zinc-500">
-                <span className="h-2 w-2 rounded-full bg-zinc-600" />
-                Local only
+              <span className="hidden sm:flex items-center gap-2 text-zinc-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-500/70" />
+                Auto-saved
               </span>
             )}
+            <button
+              type="button"
+              onClick={handleSave}
+              className="rounded-lg bg-gold text-zinc-950 font-medium text-xs py-1.5 px-3 hover:bg-gold-soft transition-colors shadow-gold"
+              title="Download a backup of all your dashboard data"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-lg border border-zinc-700 text-zinc-300 hover:text-zinc-50 hover:border-zinc-500 text-xs py-1.5 px-3 transition-colors"
+              title="Restore from a backup file"
+            >
+              Restore
+            </button>
             {user && (
               <>
                 <span className="hidden md:inline text-zinc-500">{user.email}</span>
