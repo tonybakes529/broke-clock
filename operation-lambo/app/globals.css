@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-orbitron: "Orbitron", monospace;
+  --font-chakra: "Chakra Petch", sans-serif;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: radial-gradient(1200px 600px at 50% -10%, #0b1722, #05070a);
+  background-attachment: fixed;
+  color: #e7f2f7;
+  font-family: var(--font-chakra);
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-hud-line bg-hud-panel/70 backdrop-blur;
+  }
+  .num {
+    font-family: var(--font-orbitron);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+  .label {
+    @apply text-[11px] uppercase tracking-[0.2em] text-white/45;
+  }
+  .btn {
+    @apply rounded-lg border border-hud-line bg-white/[0.03] px-3 py-2 text-sm
+      transition-colors hover:bg-white/[0.08] disabled:opacity-40
+      disabled:hover:bg-white/[0.03];
+  }
+  .btn-go {
+    @apply rounded-lg border border-accent/40 bg-accent/10 px-4 py-2 text-sm
+      font-semibold text-accent transition-all hover:bg-accent/20
+      hover:shadow-glow disabled:opacity-40;
+  }
+  .field {
+    @apply rounded-lg border border-hud-line bg-black/30 px-3 py-2 text-sm
+      outline-none focus:border-cyan/50;
+  }
+}
+
+/* Tron-y scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #1c2b38;
+  border-radius: 8px;
+}
