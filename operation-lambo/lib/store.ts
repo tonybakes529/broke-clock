@@ -11,6 +11,9 @@ import {
   type GameState,
   type Kind,
 } from "./engine";
+import type { RecurRule } from "./recurring";
+
+export type { RecurRule } from "./recurring";
 
 export interface LTx {
   id: string;
@@ -19,6 +22,7 @@ export interface LTx {
   amount: number;
   note: string | null;
   luxury: boolean;
+  recurring?: boolean;
 }
 export interface LDebt {
   id: string;
@@ -47,6 +51,7 @@ export interface LocalState {
   assets: LAsset[];
   checkIns: string[];
   judgedDays: string[];
+  recurring: RecurRule[];
 }
 
 export const STORAGE_KEY = "operation-lambo";
@@ -81,6 +86,7 @@ export function defaultState(): LocalState {
     assets: [],
     checkIns: [],
     judgedDays: [],
+    recurring: [],
   };
 }
 
@@ -99,6 +105,7 @@ export function loadState(): LocalState {
       assets: parsed.assets ?? [],
       checkIns: parsed.checkIns ?? [],
       judgedDays: parsed.judgedDays ?? [],
+      recurring: parsed.recurring ?? [],
     };
   } catch {
     return defaultState();
@@ -125,6 +132,7 @@ export function toEngineState(s: LocalState): GameState {
       amount: t.amount,
       note: t.note,
       luxury: t.luxury,
+      recurring: t.recurring,
     })),
     debts: s.debts.map((d) => ({ balance: d.balance, apr: d.apr })),
     assets: s.assets.map((a) => ({ value: a.value, liquid: a.liquid })),

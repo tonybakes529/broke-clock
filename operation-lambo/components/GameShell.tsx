@@ -8,6 +8,7 @@ import {
   Wallet,
   Scale,
   Map as MapIcon,
+  Repeat,
   RotateCcw,
   PartyPopper,
 } from "lucide-react";
@@ -17,19 +18,23 @@ import { money, perDay } from "@/lib/format";
 import { Track } from "./Track";
 import { Hud } from "./Hud";
 import { Clock } from "./Clock";
+import { Countdown } from "./Countdown";
+import { Status } from "./Status";
 import { Mission } from "./Mission";
 import { Bank } from "./Bank";
 import { Sheet } from "./Sheet";
 import { MapView } from "./MapView";
 import { BankChart } from "./BankChart";
+import { Recurring } from "./Recurring";
 
-type Tab = "dashboard" | "mission" | "bank" | "sheet" | "map";
+type Tab = "dashboard" | "mission" | "bank" | "sheet" | "recurring" | "map";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
   { id: "mission", label: "Today's Mission", icon: <Target className="h-4 w-4" /> },
   { id: "bank", label: "The Bank", icon: <Wallet className="h-4 w-4" /> },
   { id: "sheet", label: "Assets / Debt", icon: <Scale className="h-4 w-4" /> },
+  { id: "recurring", label: "Recurring", icon: <Repeat className="h-4 w-4" /> },
   { id: "map", label: "The Map", icon: <MapIcon className="h-4 w-4" /> },
 ];
 
@@ -77,6 +82,10 @@ export function GameShell() {
         investable={derived.investable}
         won={derived.won}
       />
+      <Countdown
+        effectiveTarget={derived.effectiveTarget}
+        delayDays={state.game.delayDays}
+      />
       <Hud
         bank={derived.bank}
         netWorth={derived.netWorth}
@@ -113,6 +122,7 @@ export function GameShell() {
       {/* panels */}
       {tab === "dashboard" && (
         <div className="space-y-4">
+          <Status />
           <BankChart transactions={state.transactions} currentBank={derived.bank} />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="panel p-5">
@@ -145,6 +155,8 @@ export function GameShell() {
       {tab === "bank" && <Bank transactions={state.transactions} />}
 
       {tab === "sheet" && <Sheet assets={state.assets} debts={state.debts} />}
+
+      {tab === "recurring" && <Recurring />}
 
       {tab === "map" && <MapView levels={derived.levels} />}
     </main>

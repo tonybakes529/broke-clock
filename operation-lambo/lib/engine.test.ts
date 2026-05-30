@@ -170,6 +170,19 @@ describe("daily mission", () => {
     const txs: Tx[] = [tx({ kind: "income", amount: 100 })];
     expect(mission(txs, 2740, TODAY).goalMet).toBe(false);
   });
+  it("ignores auto-posted recurring entries (manual mission)", () => {
+    const txs: Tx[] = [
+      tx({ kind: "income", amount: 5000, recurring: true }), // recurring shouldn't satisfy it
+    ];
+    const m = mission(txs, 2740, TODAY);
+    expect(m.hasIncome).toBe(false);
+    expect(m.goalMet).toBe(false);
+    expect(m.complete).toBe(false);
+    // a manual entry on top completes it
+    const m2 = mission([...txs, tx({ kind: "income", amount: 3000 })], 2740, TODAY);
+    expect(m2.complete).toBe(true);
+  });
+
   it("netToday only counts today", () => {
     const txs: Tx[] = [
       tx({ kind: "income", amount: 500, date: TODAY }),
