@@ -14,11 +14,7 @@ import type { TransactionRow } from "@/lib/types";
 import { money, date as fmtDate } from "@/lib/format";
 import { todayISO } from "@/lib/engine";
 import { parseCsv, type ParsedRow } from "@/lib/csv";
-import {
-  addTransaction,
-  deleteTransaction,
-  importTransactions,
-} from "@/app/actions";
+import { useGame } from "./GameProvider";
 
 const KINDS: { value: Kind; label: string }[] = [
   { value: "income", label: "Income" },
@@ -28,6 +24,7 @@ const KINDS: { value: Kind; label: string }[] = [
 ];
 
 export function Bank({ transactions }: { transactions: TransactionRow[] }) {
+  const { addTransaction, deleteTransaction } = useGame();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -42,9 +39,9 @@ export function Bank({ transactions }: { transactions: TransactionRow[] }) {
     setError(null);
     const amt = parseFloat(amount);
     if (!(amt > 0)) return setError("Amount must be greater than 0");
-    startTransition(async () => {
+    startTransition(() => {
       try {
-        await addTransaction({ kind, amount: amt, note, luxury, date });
+        addTransaction({ kind, amount: amt, note, luxury, date });
         setAmount("");
         setNote("");
         setLuxury(false);
@@ -147,9 +144,7 @@ export function Bank({ transactions }: { transactions: TransactionRow[] }) {
                   {money(Number(t.amount), { cents: true })}
                 </div>
                 <button
-                  onClick={() =>
-                    startTransition(() => deleteTransaction(t.id).catch(() => {}))
-                  }
+                  onClick={() => startTransition(() => deleteTransaction(t.id))}
                   className="text-white/30 hover:text-danger"
                   aria-label="delete"
                 >
@@ -165,6 +160,7 @@ export function Bank({ transactions }: { transactions: TransactionRow[] }) {
 }
 
 function CsvImport() {
+  const { importTransactions } = useGame();
   const inputRef = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [pending, startTransition] = useTransition();
@@ -182,8 +178,8 @@ function CsvImport() {
   }
 
   function commit() {
-    startTransition(async () => {
-      await importTransactions(rows);
+    startTransition(() => {
+      importTransactions(rows);
       setRows([]);
       if (inputRef.current) inputRef.current.value = "";
     });

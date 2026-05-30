@@ -4,12 +4,7 @@ import { useState, useTransition } from "react";
 import { Plus, Trash2, Landmark, CreditCard, Loader2 } from "lucide-react";
 import type { AssetRow, DebtRow } from "@/lib/types";
 import { money } from "@/lib/format";
-import {
-  upsertAsset,
-  deleteAsset,
-  upsertDebt,
-  deleteDebt,
-} from "@/app/actions";
+import { useGame } from "./GameProvider";
 
 /** Assets + debts editor. */
 export function Sheet({
@@ -28,6 +23,7 @@ export function Sheet({
 }
 
 function DebtsCard({ debts }: { debts: DebtRow[] }) {
+  const { upsertDebt, deleteDebt } = useGame();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [balance, setBalance] = useState("");
@@ -37,8 +33,8 @@ function DebtsCard({ debts }: { debts: DebtRow[] }) {
     e.preventDefault();
     const bal = parseFloat(balance);
     if (!name.trim() || isNaN(bal)) return;
-    startTransition(async () => {
-      await upsertDebt({ name: name.trim(), balance: bal });
+    startTransition(() => {
+      upsertDebt({ name: name.trim(), balance: bal });
       setName("");
       setBalance("");
     });
@@ -59,7 +55,7 @@ function DebtsCard({ debts }: { debts: DebtRow[] }) {
             <span className="flex-1 truncate text-sm">{d.name}</span>
             <span className="num text-sm text-danger">{money(Number(d.balance))}</span>
             <button
-              onClick={() => startTransition(() => deleteDebt(d.id).catch(() => {}))}
+              onClick={() => startTransition(() => deleteDebt(d.id))}
               className="text-white/30 hover:text-danger"
               aria-label="delete debt"
             >
@@ -96,6 +92,7 @@ function DebtsCard({ debts }: { debts: DebtRow[] }) {
 }
 
 function AssetsCard({ assets }: { assets: AssetRow[] }) {
+  const { upsertAsset, deleteAsset } = useGame();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
@@ -106,8 +103,8 @@ function AssetsCard({ assets }: { assets: AssetRow[] }) {
     e.preventDefault();
     const val = parseFloat(value);
     if (!name.trim() || isNaN(val)) return;
-    startTransition(async () => {
-      await upsertAsset({ name: name.trim(), value: val, liquid });
+    startTransition(() => {
+      upsertAsset({ name: name.trim(), value: val, liquid });
       setName("");
       setValue("");
       setLiquid(true);
@@ -138,7 +135,7 @@ function AssetsCard({ assets }: { assets: AssetRow[] }) {
             </span>
             <span className="num text-sm text-accent">{money(Number(a.value))}</span>
             <button
-              onClick={() => startTransition(() => deleteAsset(a.id).catch(() => {}))}
+              onClick={() => startTransition(() => deleteAsset(a.id))}
               className="text-white/30 hover:text-danger"
               aria-label="delete asset"
             >
