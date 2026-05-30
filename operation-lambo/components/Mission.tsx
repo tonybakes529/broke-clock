@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Check, X, Target, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Check, X, Target } from "lucide-react";
 import type { MissionStatus } from "@/lib/engine";
 import { money } from "@/lib/format";
-import { completeMission } from "@/app/actions";
+import { useGame } from "./GameProvider";
 
 function Line({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
@@ -31,18 +31,16 @@ export function Mission({
   dailyGoal: number;
   alreadyCompleted: boolean;
 }) {
-  const [pending, startTransition] = useTransition();
+  const { completeMission } = useGame();
   const [error, setError] = useState<string | null>(null);
 
   function onComplete() {
     setError(null);
-    startTransition(async () => {
-      try {
-        await completeMission();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed");
-      }
-    });
+    try {
+      completeMission();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed");
+    }
   }
 
   const done = alreadyCompleted;
@@ -70,10 +68,9 @@ export function Mission({
       <div className="mt-4 flex items-center gap-3">
         <button
           onClick={onComplete}
-          disabled={!status.complete || done || pending}
+          disabled={!status.complete || done}
           className="btn-go"
         >
-          {pending && <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />}
           {done ? "Mission complete ✓" : "Complete Mission"}
         </button>
         {!status.complete && !done && (

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Gauge,
   LayoutDashboard,
@@ -9,12 +8,10 @@ import {
   Wallet,
   Scale,
   Map as MapIcon,
-  LogOut,
+  RotateCcw,
   PartyPopper,
 } from "lucide-react";
-import type { Derived } from "@/lib/engine";
-import type { FullState } from "@/lib/types";
-import { createClient } from "@/lib/supabase/client";
+import { useGame } from "./GameProvider";
 import { money, perDay } from "@/lib/format";
 
 import { Track } from "./Track";
@@ -36,24 +33,18 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "map", label: "The Map", icon: <MapIcon className="h-4 w-4" /> },
 ];
 
-export function GameShell({
-  state,
-  derived,
-  today,
-  email,
-}: {
-  state: FullState;
-  derived: Derived;
-  today: string;
-  email: string | null;
-}) {
+export function GameShell() {
+  const { state, derived, today, resetGame } = useGame();
   const [tab, setTab] = useState<Tab>("dashboard");
-  const router = useRouter();
 
-  async function signOut() {
-    await createClient().auth.signOut();
-    router.push("/login");
-    router.refresh();
+  function onReset() {
+    if (
+      window.confirm(
+        "Reset the whole game? This wipes your bank, transactions, assets, debts and streak.",
+      )
+    ) {
+      resetGame();
+    }
   }
 
   return (
@@ -66,12 +57,9 @@ export function GameShell({
             OPERATION <span className="text-accent">LAMBO</span>
           </h1>
         </div>
-        <div className="flex items-center gap-3 text-sm text-white/45">
-          {email && <span className="hidden md:inline">{email}</span>}
-          <button onClick={signOut} className="btn" aria-label="sign out">
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
+        <button onClick={onReset} className="btn" aria-label="reset game" title="Reset game">
+          <RotateCcw className="h-4 w-4" />
+        </button>
       </header>
 
       {derived.won && (
@@ -97,7 +85,7 @@ export function GameShell({
       />
       <Clock
         effectiveTarget={derived.effectiveTarget}
-        delayDays={state.game.delay_days}
+        delayDays={state.game.delayDays}
         daysUntilTarget={derived.daysUntilTarget}
         paceETA={derived.paceETA}
         reqPace={derived.reqPace}
@@ -149,7 +137,7 @@ export function GameShell({
       {tab === "mission" && (
         <Mission
           status={derived.mission}
-          dailyGoal={Number(state.game.daily_goal)}
+          dailyGoal={state.game.dailyGoal}
           alreadyCompleted={state.checkIns.includes(today)}
         />
       )}
