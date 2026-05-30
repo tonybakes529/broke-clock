@@ -21,6 +21,7 @@ export interface Tx {
   amount: number; // always > 0
   note?: string | null;
   luxury?: boolean;
+  recurring?: boolean; // auto-posted by a recurring rule (excluded from the mission)
 }
 
 export interface Debt {
@@ -233,7 +234,9 @@ export function mission(
   dailyGoal: number,
   today: string,
 ): MissionStatus {
-  const todays = transactions.filter((t) => t.date === today);
+  // The mission counts MANUAL activity only — auto-posted recurring entries
+  // update your numbers but never complete the daily mission for you.
+  const todays = transactions.filter((t) => t.date === today && !t.recurring);
   const hasIncome = todays.some((t) => t.kind === "income");
   const net = todays.reduce((sum, t) => sum + signed(t), 0);
   const goalMet = net >= dailyGoal;
